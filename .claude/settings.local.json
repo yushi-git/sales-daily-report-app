@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx vitest:*)",
+      "Bash(git init:*)",
+      "Bash(npx husky:*)",
+      "Bash(git add:*)",
+      "Bash(npx lint-staged:*)",
+      "Bash(ls /Users/yushi/repository/learningProject/ClaudeCode/book_AI_driven_dev/chapter4_sales_daily_report_app/node_modules/eslint-config-next/*.js)",
+      "Bash(python3 -m json.tool)",
+      "Bash(ls -la /Users/yushi/repository/learningProject/ClaudeCode/book_AI_driven_dev/chapter4_sales_daily_report_app/.*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__query-docs"
+    ]
+  }
+}
