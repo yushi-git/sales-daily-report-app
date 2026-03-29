@@ -1,0 +1,135 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Enums
+// ============================================================
+
+enum Role {
+  sales
+  manager
+  admin
+}
+
+enum ReportStatus {
+  draft
+  submitted
+  confirmed
+}
+
+enum SectionType {
+  problem
+  plan
+}
+
+// ============================================================
+// Models
+// ============================================================
+
+/// 営業担当者マスタ（自己参照で上長・部下の階層を表現）
+model Sales {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  password     String
+  department   String?
+  role         Role     @default(sales)
+  managerId    String?  @map("manager_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // 自己参照リレーション（上長）
+  manager      Sales?   @relation("ManagerSubordinate", fields: [managerId], references: [id], onDelete: SetNull)
+  // 自己参照リレーション（部下一覧）
+  subordinates Sales[]  @relation("ManagerSubordinate")
+
+  dailyReports DailyReport[]
+  comments     SectionComment[]
+
+  @@map("sales")
+}
+
+/// 顧客マスタ
+model Customer {
+  id           String   @id @default(uuid())
+  name         String
+  company      String
+  phone        String?
+  address      String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  visitRecords VisitRecord[]
+
+  @@map("customers")
+}
+
+/// 日報（営業担当者が1日1件作成）
+model DailyReport {
+  id          String       @id @default(uuid())
+  salesId     String       @map("sales_id")
+  reportDate  DateTime     @map("report_date") @db.Date
+  status      ReportStatus @default(draft)
+  submittedAt DateTime?    @map("submitted_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  sales        Sales           @relation(fields: [salesId], references: [id], onDelete: Cascade)
+  visitRecords VisitRecord[]
+  sections     ReportSection[]
+
+  // 同一担当者・同一日付の日報は1件のみ
+  @@unique([salesId, reportDate])
+  @@map("daily_reports")
+}
+
+/// 訪問記録（日報に紐づく訪問明細）
+model VisitRecord {
+  id            String   @id @default(uuid())
+  dailyReportId String   @map("daily_report_id")
+  customerId    String   @map("customer_id")
+  sortOrder     Int      @map("sort_order")
+  visitContent  String   @map("visit_content") @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  dailyReport DailyReport @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
+  customer    Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@map("visit_records")
+}
+
+/// レポートセクション（Problem / Plan）
+model ReportSection {
+  id            String      @id @default(uuid())
+  dailyReportId String      @map("daily_report_id")
+  sectionType   SectionType @map("section_type")
+  content       String      @db.Text
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  dailyReport DailyReport      @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
+  comments    SectionComment[]
+
+  // 1日報につきproblem・planそれぞれ1行のみ
+  @@unique([dailyReportId, sectionType])
+  @@map("report_sections")
+}
+
+/// 上長コメント（ReportSectionに対するコメント）
+model SectionComment {
+  id              String   @id @default(uuid())
+  reportSectionId String   @map("report_section_id")
+  commenterId     String   @map("commenter_id")
+  content         String   @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  reportSection ReportSection @relation(fields: [reportSectionId], references: [id], onDelete: Cascade)
+  commenter     Sales         @relation(fields: [commenterId], references: [id], onDelete: Cascade)
+
+  @@map("section_comments")
+}
